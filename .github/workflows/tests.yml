@@ -2,12 +2,9 @@ name: Tests
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
-    branches:
-      - main
-
+    branches: [ main ]
   schedule:
     - cron: '*/5 * * * *'
 
@@ -16,34 +13,40 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        php-versions: ['7.4']
-    name: integration-tests (PHP ${{ matrix.php-versions }})
+        php-version: ['7.4']
+
+    name: integration-tests (PHP ${{ matrix.php-version }})
+
     steps:
-      - uses: actions/checkout@v1
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Install PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php-versions }}
+          php-version: ${{ matrix.php-version }}
+
       - name: Validate composer.json and composer.lock
         run: composer validate
 
       - name: Get Composer Cache Directory
         id: composer-cache
         run: |
-          echo "::set-output name=dir::$(composer config cache-files-dir)"
-      - uses: actions/cache@v2
+          echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
-          key: ${{ runner.os }}-${{ matrix.php-version }}-composer-${{ matrix.dependencies }}-${{ hashFiles('**/composer.lock') }}
+          key: ${{ runner.os }}-php-${{ matrix.php-version }}-composer-${{ hashFiles('**/composer.lock') }}
           restore-keys: |
-            ${{ runner.os }}-${{ matrix.php-version }}-composer-${{ matrix.dependencies }}-
+            ${{ runner.os }}-php-${{ matrix.php-version }}-composer-
 
       - name: Install dependencies
-        run: |
-          composer update --prefer-dist --no-progress
+        run: composer install --prefer-dist --no-progress
+
       - name: Run script
-        run: |
-          php index.php
+        run: php index.php
         env:
           OCI_REGION: ${{ secrets.OCI_REGION }}
           OCI_USER_ID: ${{ secrets.OCI_USER_ID }}
@@ -63,4 +66,3 @@ jobs:
           AD_ALWAYS_FREE: ${{ secrets.AD_ALWAYS_FREE }}
           TEST_IMAGE_ID: ${{ secrets.TEST_IMAGE_ID }}
           TEST_SUBNET_ID: ${{ secrets.TEST_SUBNET_ID }}
-
